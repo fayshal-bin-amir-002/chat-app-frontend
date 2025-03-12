@@ -64,6 +64,6 @@ const baseQueryWithRefeshToken: BaseQueryFn<
 export const baseApi = createApi({
   reducerPath: "baseApi",
   baseQuery: baseQueryWithRefeshToken,
-  tagTypes: [],
+  tagTypes: ["Profile"],
   endpoints: () => ({}),
 });
