@@ -31,6 +31,12 @@ const authApi = baseApi.injectEndpoints({
         method: "GET",
       }),
     }),
+    getAUser: builder.query({
+      query: (id: string) => ({
+        url: `/users/${id}`,
+        method: "GET",
+      }),
+    }),
   }),
 });
 
@@ -39,4 +45,5 @@ export const {
   useRegisterMutation,
   useGetUserQuery,
   useGetAllUserQuery,
+  useGetAUserQuery,
 } = authApi;

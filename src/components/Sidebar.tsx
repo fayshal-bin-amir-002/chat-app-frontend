@@ -1,11 +1,8 @@
-import { LogOut, Menu, Search, User, X } from "lucide-react";
-import { useState } from "react";
-import {
-  useGetAllUserQuery,
-  useGetUserQuery,
-} from "../redux/features/auth/authApi";
-import { useAppDispatch } from "../redux/hooks";
-import { logout } from "../redux/features/auth/authSlice";
+import { LogOut, MessageCircle, Search, User, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useGetUserQuery } from "../redux/features/auth/authApi";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
+import { logout, selectCurrentUser } from "../redux/features/auth/authSlice";
 import { useSearchParams } from "react-router";
 import { useSocket } from "../context/SocketContext";
 
@@ -14,19 +11,32 @@ const Sidebar = () => {
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const { data: allUsers } = useGetAllUserQuery(undefined);
-  const { data } = useGetUserQuery(undefined);
+  const [conversations, setConversations] = useState([]);
+
+  const { socket } = useSocket();
+  const myId = useAppSelector(selectCurrentUser)?.userId;
+  const { data } = useGetUserQuery(myId);
+  const user = data?.data || {};
 
   const { onlineUsers } = useSocket();
 
   const dispatch = useAppDispatch();
 
-  const user = data?.data || {};
+  useEffect(() => {
+    if (socket) {
+      socket?.emit("sidebar", myId);
+      socket?.on("sidebar-conversation", (data) => {
+        console.log(data);
+        setConversations(data);
+      });
+    }
+  }, [socket, myId]);
+
   return (
     <>
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md px-4 py-3 flex items-center justify-between z-20">
         <button onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {!sidebarOpen ? <Menu size={24} /> : <X size={24} />}
+          {!sidebarOpen ? <MessageCircle size={24} /> : <X size={24} />}
         </button>
       </div>
       <div
@@ -47,7 +57,7 @@ const Sidebar = () => {
 
         {/* Users List */}
         <ul>
-          {allUsers?.data?.map((user: any) => (
+          {conversations?.map((user: any) => (
             <li
               key={user?._id}
               className={`flex items-center gap-3 p-2 cursor-pointer hover:bg-gray-200 rounded-md`}
@@ -63,14 +73,25 @@ const Sidebar = () => {
                   className="w-10 h-10 rounded-full object-cover object-center"
                 />
                 {onlineUsers.includes(user._id) && (
-                  <span className="absolute size-3 rounded-full bg-green-500 bottom-0 right-0"></span>
+                  <span className="absolute size-3 rounded-full bg-green-500 top-0 right-0.5"></span>
                 )}
               </div>
-              <div>
-                <p className="font-semibold">{user?.name}</p>
-                <p className="text-sm text-gray-500 truncate w-40">
-                  {"No messages yet"}
-                </p>
+              <div className="flex-1 flex items-center justify-between w-full">
+                <div>
+                  <p className="font-semibold">{user?.name}</p>
+                  <p
+                    className={`${
+                      user?.unseenCount > 0 ? "text-black" : "text-gray-500"
+                    } "text-sm  truncate w-40"`}
+                  >
+                    {user?.lastMessage}
+                  </p>
+                </div>
+                {user?.unseenCount > 0 && (
+                  <span className="text-xs font-semibold">
+                    {user?.unseenCount}
+                  </span>
+                )}
               </div>
             </li>
           ))}
