@@ -1,6 +1,9 @@
 import { LogOut, MessageCircle, Search, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGetUserQuery } from "../redux/features/auth/authApi";
+import {
+  useFindUserQuery,
+  useGetUserQuery,
+} from "../redux/features/auth/authApi";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { logout, selectCurrentUser } from "../redux/features/auth/authSlice";
 import { useSearchParams } from "react-router";
@@ -9,6 +12,7 @@ import { useSocket } from "../context/SocketContext";
 const Sidebar = () => {
   const [searchParmams, setSearchParmams] = useSearchParams();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -22,15 +26,30 @@ const Sidebar = () => {
 
   const dispatch = useAppDispatch();
 
+  const { data: searchUsers } = useFindUserQuery(debouncedSearch, {
+    skip: !debouncedSearch,
+  });
+
+  const searchedUsers = searchUsers?.data || [];
+
   useEffect(() => {
     if (socket) {
       socket?.emit("sidebar", myId);
       socket?.on("sidebar-conversation", (data) => {
-        console.log(data);
         setConversations(data);
       });
     }
   }, [socket, myId]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 2000); // Delay of 500ms
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [search]);
 
   return (
     <>
@@ -44,15 +63,42 @@ const Sidebar = () => {
           ${sidebarOpen ? "left-0 shadow-lg" : "-left-80 lg:left-0"}`}
       >
         {/* Search Bar */}
-        <div className="flex items-center bg-gray-200 px-3 py-2 rounded-md mb-4">
-          <Search className="text-gray-500" size={18} />
-          <input
-            type="text"
-            placeholder="Search users..."
-            className="bg-transparent ml-2 outline-none w-full"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div>
+          <div className="flex items-center bg-gray-200 px-3 py-2 rounded-md mb-4">
+            <Search className="text-gray-500" size={18} />
+            <input
+              type="search"
+              placeholder="Search users..."
+              className="bg-transparent ml-2 outline-none w-full"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {searchedUsers?.length > 0 && search && (
+            <div className="max-h-28 overflow-y-auto bg-gray-200 rounded-md p-2 mb-4">
+              {searchedUsers?.map((user: any) => (
+                <div
+                  key={user?._id}
+                  className="flex items-center gap-3 cursor-pointer mb-2"
+                  onClick={() => {
+                    setSearchParmams(`user=${user?._id}`);
+                    setSidebarOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  <img
+                    src={user?.profile_image}
+                    alt={user?.name}
+                    className="size-8 rounded-full object-cover object-center"
+                  />
+                  <div className="text-sm text-gray-600">
+                    <p>{user?.name}</p>
+                    <p>{user?.email}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Users List */}
@@ -82,7 +128,7 @@ const Sidebar = () => {
                   <p
                     className={`${
                       user?.unseenCount > 0 ? "text-black" : "text-gray-500"
-                    } "text-sm  truncate w-40"`}
+                    } "text-sm  truncate w-40 overflow-hidden"`}
                   >
                     {user?.lastMessage}
                   </p>

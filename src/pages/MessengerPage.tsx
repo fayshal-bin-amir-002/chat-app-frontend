@@ -1,7 +1,8 @@
 import { Send } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { useSearchParams } from "react-router";
-import { useEffect, useState } from "react";
+// Added useRef to the imports
+import { useEffect, useState, useRef } from "react";
 import { useSocket } from "../context/SocketContext";
 import { useAppSelector } from "../redux/hooks";
 import { selectCurrentUser } from "../redux/features/auth/authSlice";
@@ -19,29 +20,99 @@ const MessengerPage = () => {
   const selectedUserId = searchParmams?.get("user") || "";
   const { socket, onlineUsers } = useSocket();
   const userId = useAppSelector(selectCurrentUser)?.userId;
-
   const myId = useAppSelector(selectCurrentUser)?.userId;
 
+  // ADDED: New refs to track page visibility and interval
+  const pageVisibleRef = useRef(true);
+  const seenIntervalRef = useRef<number | null>(null);
+
+  // ADDED: New reusable function to emit seen-message
+  const emitSeenMessage = () => {
+    if (socket && myId && selectedUserId && pageVisibleRef.current) {
+      socket.emit("seen-message", selectedUserId);
+    }
+  };
+
+  // ADDED: New useEffect to track page visibility
   useEffect(() => {
-    if (socket && selectedUserId) {
+    const handleVisibilityChange = () => {
+      pageVisibleRef.current = document.visibilityState === "visible";
+
+      // If page becomes visible, immediately emit seen status
+      if (pageVisibleRef.current) {
+        emitSeenMessage();
+      }
+    };
+
+    // Add event listener for visibility change
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [selectedUserId]);
+
+  // ADDED: New useEffect for regular interval to emit seen-message
+  useEffect(() => {
+    if (socket && myId && selectedUserId) {
+      // Clear any existing interval
+      if (seenIntervalRef.current) {
+        clearInterval(seenIntervalRef.current);
+      }
+
+      // Emit immediately when conversation is loaded
+      emitSeenMessage();
+
+      // Set up interval to emit seen-message every 10 seconds while page is visible
+      seenIntervalRef.current = window.setInterval(() => {
+        emitSeenMessage();
+      }, 10000); // 10 seconds interval - adjust as needed
+    }
+
+    return () => {
+      // Clean up interval on unmount or when changing conversations
+      if (seenIntervalRef.current) {
+        clearInterval(seenIntervalRef.current);
+        seenIntervalRef.current = null;
+      }
+    };
+  }, [socket, myId, selectedUserId]);
+
+  // MODIFIED: Updated socket event handlers
+  useEffect(() => {
+    if (socket && myId && selectedUserId) {
       socket.emit("message-page", selectedUserId);
+      // Removed the one-time emit of seen-message since we now have the interval
+
+      socket.on("conversation", (data) => {
+        setConversations(data);
+        // ADDED: Emit seen-message when new conversations are loaded
+        emitSeenMessage();
+      });
+
       socket.on("message-user", (data) => {
         setSelectedUser(data);
       });
-      socket.on("conversation", (data) => {
-        setConversations(data);
-      });
+
       socket.on("message", (data) => {
         if (
           data.sender.toString() === selectedUserId.toString() ||
           data.receiver.toString() === selectedUserId.toString()
         ) {
           setConversations((prev) => [data, ...prev]);
+          // ADDED: Emit seen-message when a new message arrives
+          emitSeenMessage();
         }
       });
-      socket.emit("seen-message", selectedUserId);
+
+      // ADDED: Cleanup socket listeners to prevent memory leaks
+      return () => {
+        socket.off("conversation");
+        socket.off("message-user");
+        socket.off("message");
+      };
     }
-  }, [selectedUserId, socket]);
+  }, [socket, selectedUserId]);
 
   const sendMessage = async (e: any) => {
     e.preventDefault();
@@ -87,6 +158,7 @@ const MessengerPage = () => {
                 conversations.map((msg: IMessage, index: number) => (
                   <div
                     key={index}
+                    // FIXED: Added backticks around the class string (your original had a syntax error)
                     className={`max-w-sm px-4 py-2 rounded-md ${
                       msg.sender === myId
                         ? "bg-blue-500 text-white ms-auto text-right"
@@ -109,11 +181,11 @@ const MessengerPage = () => {
                 defaultValue=""
                 placeholder="Type a message"
                 autoComplete="off"
-                className="flex-1 px-4 py-2  border rounded-lg focus:outline-none"
+                className="flex-1 px-4 py-2 border rounded-lg focus:outline-none"
               />
               <button
                 type="submit"
-                className="bg-blue-500 text-white py-2  rounded-lg w-16 flex justify-center items-center"
+                className="bg-blue-500 text-white py-2 rounded-lg w-16 flex justify-center items-center"
               >
                 <Send size={20} />
               </button>

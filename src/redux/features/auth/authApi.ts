@@ -37,6 +37,17 @@ const authApi = baseApi.injectEndpoints({
         method: "GET",
       }),
     }),
+    findUser: builder.query({
+      query: (query: string) => {
+        const params = new URLSearchParams();
+        if (query) params.append("user", query);
+        return {
+          url: `/users/find-user`,
+          method: "GET",
+          params: params,
+        };
+      },
+    }),
   }),
 });
 
@@ -46,4 +57,5 @@ export const {
   useGetUserQuery,
   useGetAllUserQuery,
   useGetAUserQuery,
+  useFindUserQuery,
 } = authApi;
