@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { Ellipsis, Send } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { useSearchParams } from "react-router";
 // Added useRef to the imports
@@ -7,9 +7,10 @@ import { useSocket } from "../context/SocketContext";
 import { useAppSelector } from "../redux/hooks";
 import { selectCurrentUser } from "../redux/features/auth/authSlice";
 import { IMessage } from "../types/message";
+import { toast } from "react-toastify";
 
 const MessengerPage = () => {
-  const [searchParmams] = useSearchParams();
+  const [searchParmams, setSearchParmams] = useSearchParams();
   const [selectedUser, setSelectedUser] = useState<{
     _id: string;
     name: string;
@@ -17,6 +18,7 @@ const MessengerPage = () => {
     profile_image: string;
   } | null>(null);
   const [conversations, setConversations] = useState<IMessage[] | []>([]);
+  const [conversationOptions, setConversationOptions] = useState(false);
   const selectedUserId = searchParmams?.get("user") || "";
   const { socket, onlineUsers } = useSocket();
   const userId = useAppSelector(selectCurrentUser)?.userId;
@@ -52,25 +54,20 @@ const MessengerPage = () => {
     };
   }, [selectedUserId]);
 
-  // ADDED: New useEffect for regular interval to emit seen-message
   useEffect(() => {
     if (socket && myId && selectedUserId) {
-      // Clear any existing interval
       if (seenIntervalRef.current) {
         clearInterval(seenIntervalRef.current);
       }
 
-      // Emit immediately when conversation is loaded
       emitSeenMessage();
 
-      // Set up interval to emit seen-message every 10 seconds while page is visible
       seenIntervalRef.current = window.setInterval(() => {
         emitSeenMessage();
-      }, 10000); // 10 seconds interval - adjust as needed
+      }, 10000);
     }
 
     return () => {
-      // Clean up interval on unmount or when changing conversations
       if (seenIntervalRef.current) {
         clearInterval(seenIntervalRef.current);
         seenIntervalRef.current = null;
@@ -78,15 +75,13 @@ const MessengerPage = () => {
     };
   }, [socket, myId, selectedUserId]);
 
-  // MODIFIED: Updated socket event handlers
   useEffect(() => {
     if (socket && myId && selectedUserId) {
       socket.emit("message-page", selectedUserId);
-      // Removed the one-time emit of seen-message since we now have the interval
 
       socket.on("conversation", (data) => {
         setConversations(data);
-        // ADDED: Emit seen-message when new conversations are loaded
+
         emitSeenMessage();
       });
 
@@ -100,12 +95,11 @@ const MessengerPage = () => {
           data.receiver.toString() === selectedUserId.toString()
         ) {
           setConversations((prev) => [data, ...prev]);
-          // ADDED: Emit seen-message when a new message arrives
+
           emitSeenMessage();
         }
       });
 
-      // ADDED: Cleanup socket listeners to prevent memory leaks
       return () => {
         socket.off("conversation");
         socket.off("message-user");
@@ -130,27 +124,56 @@ const MessengerPage = () => {
     form.reset();
   };
 
+  const handleDeleteConversation = async () => {
+    if (socket && selectedUserId) {
+      socket.emit("delete-conversation", selectedUserId, myId);
+      setConversations([]);
+      setConversationOptions(false);
+      toast.success("Conversation deleted successfully");
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100 relative">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar setSearchParmams={setSearchParmams} />
 
       {/* Chat Window */}
       <div className="mt-12 lg:mt-0 flex-1 flex flex-col bg-white p-4">
         {selectedUser ? (
           <>
-            <div className="border-b pb-3 mb-3 flex gap-3 items-center">
+            <div className="border-b pb-3 mb-3 flex justify-between items-center">
+              <div className="flex gap-3 items-center">
+                <div className="relative">
+                  <img
+                    src={selectedUser?.profile_image}
+                    alt={selectedUser?.name}
+                    className="w-10 h-10 rounded-full object-cover object-center"
+                  />
+                  {onlineUsers?.includes(selectedUser?._id) && (
+                    <span className="absolute size-3 rounded-full bg-green-500 top-0 right-0.5"></span>
+                  )}
+                </div>
+                <h2 className="text-lg font-semibold">{selectedUser?.name}</h2>
+              </div>
               <div className="relative">
-                <img
-                  src={selectedUser?.profile_image}
-                  alt={selectedUser?.name}
-                  className="w-10 h-10 rounded-full object-cover object-center"
-                />
-                {onlineUsers?.includes(selectedUser?._id) && (
-                  <span className="absolute size-3 rounded-full bg-green-500 top-0 right-0.5"></span>
+                <button className="mr-2 md:mr-8">
+                  <Ellipsis
+                    size={24}
+                    onClick={() => setConversationOptions(!conversationOptions)}
+                  />
+                </button>
+                {conversationOptions && (
+                  <div className="bg-gray-200 p-4 rounded-lg shadow absolute right-10 ">
+                    <button
+                      className="min-w-max bg-red-400 hover:bg-red-500 py-2 px-4 rounded-lg text-white duration-300"
+                      onClick={() => handleDeleteConversation()}
+                    >
+                      Delete Conversation
+                    </button>
+                  </div>
                 )}
               </div>
-              <h2 className="text-lg font-semibold">{selectedUser?.name}</h2>
             </div>
 
             <div className="flex-1 flex flex-col-reverse overflow-y-auto gap-2">
@@ -158,7 +181,6 @@ const MessengerPage = () => {
                 conversations.map((msg: IMessage, index: number) => (
                   <div
                     key={index}
-                    // FIXED: Added backticks around the class string (your original had a syntax error)
                     className={`max-w-sm px-4 py-2 rounded-md ${
                       msg.sender === myId
                         ? "bg-blue-500 text-white ms-auto text-right"

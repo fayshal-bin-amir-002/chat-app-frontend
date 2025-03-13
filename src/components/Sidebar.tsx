@@ -6,11 +6,14 @@ import {
 } from "../redux/features/auth/authApi";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { logout, selectCurrentUser } from "../redux/features/auth/authSlice";
-import { useSearchParams } from "react-router";
+import { Link, SetURLSearchParams } from "react-router";
 import { useSocket } from "../context/SocketContext";
 
-const Sidebar = () => {
-  const [searchParmams, setSearchParmams] = useSearchParams();
+const Sidebar = ({
+  setSearchParmams,
+}: {
+  setSearchParmams: SetURLSearchParams;
+}) => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -147,9 +150,11 @@ const Sidebar = () => {
         <div className="absolute bottom-4 left-4 right-4">
           {accountMenuOpen && (
             <div className="bg-gray-50 shadow-md rounded-md mb-2 p-2">
-              <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-200 rounded-md">
-                <User size={16} /> Profile
-              </button>
+              <Link to="/profile">
+                <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-200 rounded-md">
+                  <User size={16} /> Profile
+                </button>
+              </Link>
               <button
                 className="flex items-center gap-2 w-full p-2 hover:bg-gray-200 rounded-md"
                 onClick={() => dispatch(logout())}

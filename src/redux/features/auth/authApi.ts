@@ -48,6 +48,14 @@ const authApi = baseApi.injectEndpoints({
         };
       },
     }),
+    updateProfile: builder.mutation({
+      query: (data: any) => ({
+        url: "/users/update",
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["Profile"],
+    }),
   }),
 });
 
@@ -58,4 +66,5 @@ export const {
   useGetAllUserQuery,
   useGetAUserQuery,
   useFindUserQuery,
+  useUpdateProfileMutation,
 } = authApi;

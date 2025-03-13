@@ -3,6 +3,7 @@ import App from "../App";
 import LoginPage from "../pages/LoginPage";
 import MessengerPage from "../pages/MessengerPage";
 import ProtectedRoute from "./ProtectedRoute";
+import ProfilePage from "../pages/Profile";
 
 const router = createBrowserRouter([
   {
@@ -14,6 +15,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <MessengerPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/profile",
+        element: (
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         ),
       },
