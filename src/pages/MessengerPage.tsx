@@ -164,7 +164,7 @@ const MessengerPage = () => {
                   />
                 </button>
                 {conversationOptions && (
-                  <div className="bg-gray-200 p-4 rounded-lg shadow absolute right-10 ">
+                  <div className="bg-gray-200 p-4 rounded-lg shadow absolute right-0 md:right-4 lg:right-10 ">
                     <button
                       className="min-w-max bg-red-400 hover:bg-red-500 py-2 px-4 rounded-lg text-white duration-300"
                       onClick={() => handleDeleteConversation()}

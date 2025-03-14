@@ -22,9 +22,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      const socket = io("http://localhost:5500", {
-        auth: { token },
-      });
+      const socket = io(
+        "https://chat-app-backend-production-ec7b.up.railway.app",
+        {
+          auth: { token },
+        }
+      );
 
       socket.on("onlineUsers", (data) => {
         setOnlineUsers(data);
