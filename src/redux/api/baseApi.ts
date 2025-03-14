@@ -36,7 +36,7 @@ const baseQueryWithRefeshToken: BaseQueryFn<
 
   if (result.error?.status === 401 || result.error?.status === 403) {
     api.dispatch(logout());
-    // const res = await fetch("http://localhost:5500/api/v1/auth/refresh-token", {
+    // const res = await fetch("https://chat-app-backend-production-ec7b.up.railway.app/api/v1/auth/refresh-token", {
     //   method: "POST",
     //   credentials: "include",
     // });
